@@ -4,47 +4,58 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Budgetplanner</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
-:root{--bg:#f6f5f1;--card:#fff;--ink:#1d2b2a;--mut:#6b7775;--line:#e3e1d9;--acc:#1f6f5c;--acc2:#e8f3ef;--bad:#b3392f;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141a19;--card:#1c2423;--ink:#e8efed;--mut:#92a09d;--line:#2d3836;--acc:#4fb79d;--acc2:#1f2e2b;--bad:#ef7b70}}
-:root[data-theme="dark"]{--bg:#141a19;--card:#1c2423;--ink:#e8efed;--mut:#92a09d;--line:#2d3836;--acc:#4fb79d;--acc2:#1f2e2b;--bad:#ef7b70}
+:root{--bg:#f7f9fc;--card:#ffffff;--ink:#1e2a3b;--mut:#7a8699;--line:#e9eef5;--field:#f3f6fb;--acc:#5b7cfa;--acc2:#eef2ff;--bad:#e5484d;--sh:0 1px 2px rgba(30,42,59,.04),0 8px 24px rgba(30,42,59,.06);box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1322;--card:#161d33;--ink:#e8ecf7;--mut:#8e99b5;--line:#252e4a;--field:#1c2540;--acc:#8ea2ff;--acc2:#1e2850;--bad:#ff8a8f;--sh:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1322;--card:#161d33;--ink:#e8ecf7;--mut:#8e99b5;--line:#252e4a;--field:#1c2540;--acc:#8ea2ff;--acc2:#1e2850;--bad:#ff8a8f;--sh:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);color-scheme:dark}
 *{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
-main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
-h1{font-size:26px;margin:0}h2{font-size:17px;margin:0 0 12px}
-header{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;margin-bottom:6px}
-.sub{color:var(--mut);margin:0 0 18px;font-size:13px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
-.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
-label{display:block;font-size:12px;color:var(--mut);margin-bottom:3px}
-input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
-input:focus,select:focus{outline:2px solid var(--acc);outline-offset:-1px}
-.tw{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:560px}
-th{font-size:12px;text-align:left;color:var(--mut);font-weight:600;padding:4px 6px}
-td{padding:3px 4px;vertical-align:middle}td.n{text-align:right;white-space:nowrap;padding:3px 8px;font-variant-numeric:tabular-nums}
-tfoot td{border-top:2px solid var(--line);font-weight:700;padding-top:8px}
-button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:7px 12px}
-button.p{background:var(--acc);border-color:var(--acc);color:#fff}
-button.x{border:0;background:none;color:var(--mut);padding:4px 8px;font-size:18px;line-height:1}button.x:hover{color:var(--bad)}
-.add{margin-top:8px;color:var(--acc);border-style:dashed}
-.bar{display:flex;flex-wrap:wrap;gap:8px}
-.kpis{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
-.k{background:var(--acc2);border-radius:10px;padding:10px 12px}.k b{display:block;font-size:20px}.k span{font-size:12px;color:var(--mut)}
-.neg{color:var(--bad)}.note{font-size:12px;color:var(--mut);margin:8px 0 0}
-#msg{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:20px;font-size:13px;display:none;z-index:9}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;transition:background .2s,color .2s}
+main{max-width:1080px;margin:0 auto;padding:28px 16px 70px}
+h1{font-size:28px;font-weight:700;letter-spacing:-.02em;margin:0}h2{font-size:16px;font-weight:650;margin:0 0 14px}
+header{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center;margin-bottom:6px}
+.sub{color:var(--mut);margin:0 0 22px;font-size:13.5px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;margin-bottom:18px;box-shadow:var(--sh);transition:background .2s}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+label{display:block;font-size:12px;color:var(--mut);margin-bottom:4px;font-weight:500}
+input,select{width:100%;font:inherit;color:var(--ink);background:var(--field);border:1px solid transparent;border-radius:10px;padding:8px 11px;transition:border-color .15s,background .15s}
+input:hover,select:hover{border-color:var(--line)}
+input:focus,select:focus{outline:none;border-color:var(--acc);background:var(--card);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 22%,transparent)}
+.tw{overflow-x:auto}table{width:100%;border-collapse:separate;border-spacing:0 3px;min-width:600px}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;text-align:left;color:var(--mut);font-weight:600;padding:4px 6px}
+th.n{text-align:right}
+td{padding:1px 3px;vertical-align:middle}td.n{text-align:right;white-space:nowrap;padding:3px 10px;font-variant-numeric:tabular-nums;color:var(--mut)}
+tfoot td{font-weight:650;padding-top:12px;color:var(--ink)}tfoot td.n{color:var(--ink)}
+button{font:inherit;font-size:14px;cursor:pointer;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 16px;transition:transform .1s,background .15s,border-color .15s}
+button:hover{border-color:var(--acc)}button:active{transform:scale(.97)}
+button.p{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+button.p:hover{filter:brightness(1.07)}
+button.x{border:0;background:none;color:var(--mut);padding:4px 9px;font-size:18px;line-height:1}button.x:hover{color:var(--bad)}
+button.add{margin-top:10px;color:var(--acc);border:1px dashed color-mix(in srgb,var(--acc) 45%,transparent);background:transparent}
+button.add:hover{background:var(--acc2)}
+button.ic{width:38px;height:38px;padding:0;font-size:17px;display:inline-flex;align-items:center;justify-content:center}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.kpis{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.k{background:var(--acc2);border-radius:14px;padding:14px 16px}.k b{display:block;font-size:21px;font-weight:700;letter-spacing:-.01em;margin-top:2px}.k span{font-size:12px;color:var(--mut)}
+.neg{color:var(--bad)}.note{font-size:12.5px;color:var(--mut);margin:10px 0 0}
+#msg{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:13px;display:none;z-index:9;box-shadow:var(--sh)}
 </style>
 </head>
 <body>
 <main>
 <header><h1>Budgetplanner</h1>
 <div class="bar">
+<button class="ic" id="bTheme" title="Licht / donker" aria-label="Licht of donker thema">🌙</button>
 <button class="p" id="bPdf">Exporteer PDF</button>
 <button id="bJson">Exporteer JSON</button>
 <button id="bImp">Importeer JSON</button>
+<button id="bXls">Exporteer Excel</button>
+<button id="bImpX">Importeer Excel</button>
 <button id="bReset">Leegmaken</button>
 <input type="file" id="file" accept=".json,application/json" hidden>
+<input type="file" id="fileX" accept=".xlsx,.xls,.xlsm,.csv" hidden>
 </div></header>
 <p class="sub">Alles gebeurt in je browser. Er wordt niets opgeslagen: exporteer als je klaar bent en importeer later opnieuw om verder te rekenen.</p>
 
@@ -136,18 +147,64 @@ $("#file").onchange=e=>{
   render();toast("JSON geïmporteerd")}catch(_){toast("Ongeldig JSON-bestand")}};
  r.readAsText(f);e.target.value="";
 };
+
+const SH={prof:"Gegevens",inc:"Inkomsten",cost:"Vaste kosten",debt:"Schulden"};
+const FM=r=>`B${r}*IF(LOWER(C${r})="maand",12,IF(LOWER(C${r})="week",52,IF(LOWER(C${r})="trimester",4,IF(LOWER(C${r})="semester",2,IF(LOWER(C${r})="jaar",1,0)))))`;
+function flowSheet(l,tm,ty){
+ const n=l.length,aoa=[["Naam","Bedrag","Periodiciteit","Maandbedrag","Jaarbedrag"],...l.map(r=>[r.name,+r.amount||0,PERL[r.per],yr(r)/12,yr(r)]),["Totaal","","",tm,ty]];
+ const ws=XLSX.utils.aoa_to_sheet(aoa);
+ l.forEach((r,i)=>{const x=i+2;ws["E"+x]={t:"n",f:FM(x),v:yr(r),z:"#,##0.00"};ws["D"+x]={t:"n",f:`E${x}/12`,v:yr(r)/12,z:"#,##0.00"};ws["B"+x].z="#,##0.00"});
+ const t=n+2;ws["D"+t]={t:"n",f:`SUM(D2:D${n+1})`,v:tm,z:"#,##0.00"};ws["E"+t]={t:"n",f:`SUM(E2:E${n+1})`,v:ty,z:"#,##0.00"};
+ ws["!cols"]=[{wch:34},{wch:13},{wch:15},{wch:14},{wch:14}];return ws;
+}
+$("#bXls").onclick=()=>{
+ const c=calc(),wb=XLSX.utils.book_new(),pr=S.profile;
+ const wp=XLSX.utils.aoa_to_sheet([["Veld","Waarde"],...PF.map(([k,l,t])=>[l,t?(+pr[k]||0):(pr[k]??"")])]);wp["!cols"]=[{wch:26},{wch:34}];
+ XLSX.utils.book_append_sheet(wb,wp,SH.prof);
+ XLSX.utils.book_append_sheet(wb,flowSheet(S.income,c.im,c.iy),SH.inc);
+ XLSX.utils.book_append_sheet(wb,flowSheet(S.costs,c.cm,c.cy),SH.cost);
+ const D=S.debts,wd=XLSX.utils.aoa_to_sheet([["Schuldeiser","Bedrag","Afbetaling / maand","Contact"],...D.map((d,i)=>[d.name,+d.amount||0,c.pay[i],d.contact]),["Totaal",c.tot,c.pay.reduce((a,b)=>a+b,0),""]]);
+ for(let i=2;i<=D.length+2;i++){wd["B"+i].z="#,##0.00";wd["C"+i].z="#,##0.00"}
+ wd["B"+(D.length+2)]={t:"n",f:`SUM(B2:B${D.length+1})`,v:c.tot,z:"#,##0.00"};
+ wd["!cols"]=[{wch:30},{wch:13},{wch:18},{wch:30}];
+ XLSX.utils.book_append_sheet(wb,wd,SH.debt);
+ save("budgetplan.xlsx",XLSX.write(wb,{bookType:"xlsx",type:"array"}),"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+};
+$("#bImpX").onclick=()=>$("#fileX").click();
+$("#fileX").onchange=e=>{
+ const f=e.target.files[0];if(!f)return;const r=new FileReader();
+ r.onload=()=>{try{
+  const wb=XLSX.read(r.result,{type:"array"}),low=x=>String(x??"").trim().toLowerCase();
+  const rows=name=>{const k=wb.SheetNames.find(n=>low(n)==low(name));return k?XLSX.utils.sheet_to_json(wb.Sheets[k],{header:1,defval:""}).slice(1):null};
+  const num=v=>{if(typeof v=="number")return v;const n=parseFloat(String(v).replace(/[€\s]/g,"").replace(",","."));return isNaN(n)?0:n};
+  const perOf={};Object.keys(PER).forEach(k=>{perOf[k]=k;perOf[low(PERL[k])]=k});
+  const flow=l=>l.filter(x=>low(x[0])!="totaal"&&(String(x[0]).trim()||num(x[1]))).map(x=>({name:String(x[0]).trim(),amount:num(x[1]),per:perOf[low(x[2])]||"maand"}));
+  const ri=rows(SH.inc),rc=rows(SH.cost),rd=rows(SH.debt),rp=rows(SH.prof);
+  if(!ri&&!rc)throw 0;
+  const profile={};
+  (rp||[]).forEach(x=>{const f=PF.find(a=>low(a[1])==low(x[0]));if(f)profile[f[0]]=f[2]?num(x[1]):String(x[1]??"")});
+  const debts=(rd||[]).filter(x=>low(x[0])!="totaal"&&(String(x[0]).trim()||num(x[1]))).map(x=>({name:String(x[0]).trim(),amount:num(x[1]),contact:String(x[3]??"").trim()}));
+  S={profile,income:flow(ri||[]),costs:flow(rc||[]),debts:debts.length?debts:[{name:"",amount:0,contact:""}]};
+  render();toast("Excel geïmporteerd")}catch(_){toast("Excel-bestand niet herkend")}};
+ r.readAsArrayBuffer(f);e.target.value="";
+};
 $("#bReset").onclick=()=>{if(confirm("Alle ingevulde gegevens wissen?")){S=defaults();render()}};
 $("#bPdf").onclick=async()=>{
  const{jsPDF}=window.jspdf,doc=new jsPDF(),c=calc(),p=S.profile;
  doc.setFontSize(18);doc.text("Budgetplan",14,16);doc.setFontSize(10);
  const info=[["Naam",p.naam],["GSM",p.gsm],["Tel",p.tel],["Adres",p.adres],["Budgetbeheerrekening",p.budgetrek],["Afnamerekening",p.afname],["Eigen rekening",p.eigen],["Spaarrekening",p.spaarrek],["Spaargeld",eur(p.spaargeld)]].filter(r=>r[1]);
  doc.autoTable({startY:22,body:info,theme:"plain",styles:{fontSize:9,cellPadding:1},columnStyles:{0:{fontStyle:"bold",cellWidth:45}}});
- const flow=(title,l,tm,ty)=>doc.autoTable({startY:doc.lastAutoTable.finalY+8,head:[[title,"Bedrag","Periode","Maand","Jaar"]],body:l.filter(r=>r.name||r.amount).map(r=>[r.name,eur(r.amount),PERL[r.per],eur(yr(r)/12),eur(yr(r))]),foot:[["Totaal","","",eur(tm),eur(ty)]],headStyles:{fillColor:[31,111,92]},footStyles:{fillColor:[232,243,239],textColor:20},styles:{fontSize:9},columnStyles:{1:{halign:"right"},3:{halign:"right"},4:{halign:"right"}}});
+ const flow=(title,l,tm,ty)=>doc.autoTable({startY:doc.lastAutoTable.finalY+8,head:[[title,"Bedrag","Periode","Maand","Jaar"]],body:l.filter(r=>r.name||r.amount).map(r=>[r.name,eur(r.amount),PERL[r.per],eur(yr(r)/12),eur(yr(r))]),foot:[["Totaal","","",eur(tm),eur(ty)]],headStyles:{fillColor:[91,124,250]},footStyles:{fillColor:[238,242,255],textColor:20},styles:{fontSize:9},columnStyles:{1:{halign:"right"},3:{halign:"right"},4:{halign:"right"}}});
  flow("Inkomsten",S.income,c.im,c.iy);flow("Vaste kosten",S.costs,c.cm,c.cy);
- doc.autoTable({startY:doc.lastAutoTable.finalY+8,head:[["Schuldeiser","Bedrag","Afbetaling / maand","Contact"]],body:S.debts.map((d,i)=>[d.name,eur(d.amount),eur(c.pay[i]),d.contact]).filter(r=>r[0]||r[3]||c.tot),foot:[["Totaal",eur(c.tot),eur(c.pay.reduce((a,b)=>a+b,0)),""]],headStyles:{fillColor:[31,111,92]},footStyles:{fillColor:[232,243,239],textColor:20},styles:{fontSize:9},columnStyles:{1:{halign:"right"},2:{halign:"right"}}});
- doc.autoTable({startY:doc.lastAutoTable.finalY+8,head:[["Schuldprognose",""]],body:[["Beschikbaar / maand",eur(c.avail)],["Beschikbaar / jaar",eur(c.availY)],["Totale schuld",eur(c.tot)],["Afbetalingstermijn",c.months==null?"—":`${c.months.toFixed(1)} maanden (${(c.months/12).toFixed(2)} jaar)`]],headStyles:{fillColor:[31,111,92]},styles:{fontSize:9},columnStyles:{1:{halign:"right"}}});
+ doc.autoTable({startY:doc.lastAutoTable.finalY+8,head:[["Schuldeiser","Bedrag","Afbetaling / maand","Contact"]],body:S.debts.map((d,i)=>[d.name,eur(d.amount),eur(c.pay[i]),d.contact]).filter(r=>r[0]||r[3]||c.tot),foot:[["Totaal",eur(c.tot),eur(c.pay.reduce((a,b)=>a+b,0)),""]],headStyles:{fillColor:[91,124,250]},footStyles:{fillColor:[238,242,255],textColor:20},styles:{fontSize:9},columnStyles:{1:{halign:"right"},2:{halign:"right"}}});
+ doc.autoTable({startY:doc.lastAutoTable.finalY+8,head:[["Schuldprognose",""]],body:[["Beschikbaar / maand",eur(c.avail)],["Beschikbaar / jaar",eur(c.availY)],["Totale schuld",eur(c.tot)],["Afbetalingstermijn",c.months==null?"—":`${c.months.toFixed(1)} maanden (${(c.months/12).toFixed(2)} jaar)`]],headStyles:{fillColor:[91,124,250]},styles:{fontSize:9},columnStyles:{1:{halign:"right"}}});
  save("budgetplan.pdf",doc.output("blob"),"application/pdf");
 };
+const dm=matchMedia("(prefers-color-scheme: dark)");
+function theme(t,keep){document.documentElement.dataset.theme=t;$("#bTheme").textContent=t=="dark"?"☀️":"🌙";if(keep)try{localStorage.setItem("theme",t)}catch(_){}}
+let t0=null;try{t0=localStorage.getItem("theme")}catch(_){}
+theme(t0||(dm.matches?"dark":"light"));
+$("#bTheme").onclick=()=>theme(document.documentElement.dataset.theme=="dark"?"light":"dark",1);
 render();
 </script>
 </body>
