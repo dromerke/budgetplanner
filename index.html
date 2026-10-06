@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Budgetplanner</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -150,25 +151,45 @@ $("#file").onchange=e=>{
 
 const SH={prof:"Gegevens",inc:"Inkomsten",cost:"Vaste kosten",debt:"Schulden"};
 const FM=r=>`B${r}*IF(LOWER(C${r})="maand",12,IF(LOWER(C${r})="week",52,IF(LOWER(C${r})="trimester",4,IF(LOWER(C${r})="semester",2,IF(LOWER(C${r})="jaar",1,0)))))`;
-function flowSheet(l,tm,ty){
- const n=l.length,aoa=[["Naam","Bedrag","Periodiciteit","Maandbedrag","Jaarbedrag"],...l.map(r=>[r.name,+r.amount||0,PERL[r.per],yr(r)/12,yr(r)]),["Totaal","","",tm,ty]];
- const ws=XLSX.utils.aoa_to_sheet(aoa);
- l.forEach((r,i)=>{const x=i+2;ws["E"+x]={t:"n",f:FM(x),v:yr(r),z:"#,##0.00"};ws["D"+x]={t:"n",f:`E${x}/12`,v:yr(r)/12,z:"#,##0.00"};ws["B"+x].z="#,##0.00"});
- const t=n+2;ws["D"+t]={t:"n",f:`SUM(D2:D${n+1})`,v:tm,z:"#,##0.00"};ws["E"+t]={t:"n",f:`SUM(E2:E${n+1})`,v:ty,z:"#,##0.00"};
- ws["!cols"]=[{wch:34},{wch:13},{wch:15},{wch:14},{wch:14}];return ws;
+//XL-START
+async function buildXlsx(EJ){
+ const c=calc(),wb=new EJ.Workbook(),pr=S.profile,eurf='"€" #,##0.00';
+ const add=(name,tname,cols,rows,totals,w)=>{
+  const ws=wb.addWorksheet(name,{views:[{state:"frozen",ySplit:1}]});
+  ws.addTable({name:tname,ref:"A1",headerRow:true,totalsRow:totals,style:{theme:"TableStyleMedium2",showRowStripes:true},columns:cols,rows:rows.length?rows:[cols.map(()=>"")]});
+  w.forEach((x,i)=>ws.getColumn(i+1).width=x);return ws;
+ };
+ const ni=Math.max(S.income.length,1),nc=Math.max(S.costs.length,1),nd=Math.max(S.debts.length,1);
+ // Gegevens
+ const wg=add("Gegevens","TblGegevens",[{name:"Veld"},{name:"Waarde"}],PF.map(([k,l,t])=>[l,t?(+pr[k]||0):(pr[k]??"")]),false,[28,40]);
+ wg.getColumn(2).alignment={horizontal:"left"};
+ const si=PF.findIndex(a=>a[2])+2;if(si>1)wg.getCell("B"+si).numFmt=eurf;
+ // Samenvatting
+ const ws=add("Samenvatting","TblSamenvatting",[{name:"Omschrijving"},{name:"Waarde"}],[["Inkomsten / maand",c.im],["Vaste kosten / maand",c.cm],["Beschikbaar voor afbetaling / maand",c.avail],["Beschikbaar / jaar",c.availY],["Totale schuld",c.tot],["Afbetalingstermijn (maanden)",c.months??""],["Afbetalingstermijn (jaar)",c.months==null?"":c.months/12]],false,[40,20]);
+ const sf=[[`Inkomsten!D${ni+2}`,c.im],[`'Vaste kosten'!D${nc+2}`,c.cm],["B2-B3",c.avail],[`Inkomsten!E${ni+2}-'Vaste kosten'!E${nc+2}`,c.availY],[`Schulden!B${nd+2}`,c.tot],['IF(AND(B4>0,B6>0),B6/B4,"")',c.months??""],['IF(B7="","",B7/12)',c.months==null?"":c.months/12]];
+ sf.forEach(([f,v],i)=>{const k=ws.getCell("B"+(i+2));k.value={formula:f,result:v};k.numFmt=i<5?eurf:i==5?"0.0":"0.00"});
+ ws.getColumn(2).alignment={horizontal:"right"};
+ // Inkomsten + Vaste kosten
+ const flow=(name,tname,l,tm,ty,label)=>{
+  const w=add(name,tname,[{name:label,totalsRowLabel:"Totaal"},{name:"Bedrag"},{name:"Periodiciteit"},{name:"Maandbedrag",totalsRowFunction:"sum",totalsRowResult:tm},{name:"Jaarbedrag",totalsRowFunction:"sum",totalsRowResult:ty}],l.map(r=>[r.name,+r.amount||0,PERL[r.per],yr(r)/12,yr(r)]),true,[36,15,16,16,16]);
+  l.forEach((r,i)=>{const x=i+2;w.getCell("E"+x).value={formula:FM(x),result:yr(r)};w.getCell("D"+x).value={formula:`E${x}/12`,result:yr(r)/12};
+   w.getCell("C"+x).dataValidation={type:"list",allowBlank:true,formulae:['"Maand,Week,Trimester,Semester,Jaar"']}});
+  for(let x=2;x<=Math.max(l.length,1)+2;x++)["B","D","E"].forEach(k=>w.getCell(k+x).numFmt=eurf);
+ };
+ flow("Inkomsten","TblInkomsten",S.income,c.im,c.iy,"Type inkomsten");
+ flow("Vaste kosten","TblVasteKosten",S.costs,c.cm,c.cy,"Kosten");
+ // Schulden
+ const D=S.debts,ps=c.pay.reduce((a,b)=>a+b,0);
+ const wd=add("Schulden","TblSchulden",[{name:"Schuldeiser",totalsRowLabel:"Totaal"},{name:"Bedrag",totalsRowFunction:"sum",totalsRowResult:c.tot},{name:"Afbetaling / maand",totalsRowFunction:"sum",totalsRowResult:ps},{name:"Contact"}],D.map((d,i)=>[d.name,+d.amount||0,c.pay[i],d.contact]),true,[32,15,20,32]);
+ const rg=`$B$2:$B$${nd+1}`;
+ D.forEach((d,i)=>{const x=i+2;wd.getCell("C"+x).value={formula:`IF(SUM(${rg})=0,0,MIN(B${x}/SUM(${rg})*MAX(Samenvatting!$B$4,0),B${x}))`,result:c.pay[i]}});
+ for(let x=2;x<=nd+2;x++)["B","C"].forEach(k=>wd.getCell(k+x).numFmt=eurf);
+ wb.views=[{activeTab:1}];
+ return wb.xlsx.writeBuffer();
 }
-$("#bXls").onclick=()=>{
- const c=calc(),wb=XLSX.utils.book_new(),pr=S.profile;
- const wp=XLSX.utils.aoa_to_sheet([["Veld","Waarde"],...PF.map(([k,l,t])=>[l,t?(+pr[k]||0):(pr[k]??"")])]);wp["!cols"]=[{wch:26},{wch:34}];
- XLSX.utils.book_append_sheet(wb,wp,SH.prof);
- XLSX.utils.book_append_sheet(wb,flowSheet(S.income,c.im,c.iy),SH.inc);
- XLSX.utils.book_append_sheet(wb,flowSheet(S.costs,c.cm,c.cy),SH.cost);
- const D=S.debts,wd=XLSX.utils.aoa_to_sheet([["Schuldeiser","Bedrag","Afbetaling / maand","Contact"],...D.map((d,i)=>[d.name,+d.amount||0,c.pay[i],d.contact]),["Totaal",c.tot,c.pay.reduce((a,b)=>a+b,0),""]]);
- for(let i=2;i<=D.length+2;i++){wd["B"+i].z="#,##0.00";wd["C"+i].z="#,##0.00"}
- wd["B"+(D.length+2)]={t:"n",f:`SUM(B2:B${D.length+1})`,v:c.tot,z:"#,##0.00"};
- wd["!cols"]=[{wch:30},{wch:13},{wch:18},{wch:30}];
- XLSX.utils.book_append_sheet(wb,wd,SH.debt);
- save("budgetplan.xlsx",XLSX.write(wb,{bookType:"xlsx",type:"array"}),"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+//XL-END
+$("#bXls").onclick=async()=>{
+ try{save("budgetplan.xlsx",await buildXlsx(ExcelJS),"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}catch(err){console.error(err);toast("Excel-export mislukt")}
 };
 $("#bImpX").onclick=()=>$("#fileX").click();
 $("#fileX").onchange=e=>{
